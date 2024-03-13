@@ -1,2 +1,24 @@
-# self-search-table
-可配置带搜索，按钮，表格统一的elemnet-ui的二次封装；Configurable secondary encapsulation of elemnet ui with unified search, button, and table functions
+# test-project
+
+## Project setup
+```
+npm install
+```
+
+### Compiles and hot-reloads for development
+```
+npm run serve
+```
+
+### Compiles and minifies for production
+```
+npm run build
+```
+
+### Lints and fixes files
+```
+npm run lint
+```
+
+### Customize configuration
+See [Configuration Reference](https://cli.vuejs.org/config/).
