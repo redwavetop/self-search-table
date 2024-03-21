@@ -9,42 +9,57 @@
                         <el-radio-button :label="itRadio.value" v-for="itRadio in itemLe.list" :key="itRadio.value"> <i
                                 style="font-size: 12px;margin-right: 5px;" v-if="itRadio.icon" class="iconfont"
                                 :class="itRadio.icon"></i>{{
-                                    itRadio.label }}</el-radio-button>
+                        itRadio.label }}</el-radio-button>
                     </el-radio-group>
-                    <el-button v-hasAuth="itemLe.permission" style="width: 80px;"
-                        v-if="itemLe.type == 'button' && itemLe.show" :type="itemLe.btnType"
-                        @click="leBtnOperate(itemLe.valueName)" :disabled="itemLe.disabled">{{
-                            itemLe.label
-                        }}</el-button>
+                    <el-button v-hasAuth="itemLe.auth" v-if="itemLe.type == 'button' && itemLe.show"
+                        :type="itemLe.btnType" @click="leBtnOperate(itemLe.valueName)" :disabled="itemLe.disabled"><span
+                            style="margin-right:5px" v-if="itemLe.icon" :class="itemLe.icon"></span>{{
+                        itemLe.label
+                    }}</el-button>
+                    <el-dropdown v-if="itemLe.type == 'dropdownButton' && itemLe.show">
+                        <el-button type="primary" size="small" pain :class="itemLe.btnIcon">
+                            {{ itemLe.label }}<i class="el-icon--right" :class="itemLe.iCon"></i>
+                        </el-button>
+                        <el-dropdown-menu slot="dropdown" class="buttonDrop">
+                            <el-dropdown-item v-for="itemDrop in itemLe.dropdownMenu" :key="itemDrop.value"
+                                @click.native="itemLe.value = itemDrop.value">{{ itemDrop.label
+                                }}</el-dropdown-item>
+                        </el-dropdown-menu>
+                    </el-dropdown>
                 </div>
             </div>
             <div class="ri_condition">
                 <div :class="indexRi == searchForm.riConditions.length - 1 ? 'last_condition_item' : ''"
                     class="ri_condition_item" v-for="(itemRi, indexRi) in searchForm.riConditions" :key="indexRi">
                     <el-button v-show="itemRi.show" v-if="itemRi.type == 'button'" :type="itemRi.btnType"
-                        @click="riBtnOperate(itemRi.valueName)" :disabled="itemRi.disabled" v-hasAuth="itemRi.permission">{{
-                            itemRi.label
-                        }}</el-button>
+                        @click="riBtnOperate(itemRi.valueName)" :disabled="itemRi.disabled">{{
+                        itemRi.label
+                    }}</el-button>
                     <el-checkbox v-model="itemRi.value" v-if="itemRi.type == 'checkbox'">备选项</el-checkbox>
                     <el-input v-model="itemRi.value" :placeholder="itemRi.label" v-if="itemRi.type == 'input'"
                         clearable></el-input>
-
                     <el-select v-if="itemRi.type == 'filterSelect'" v-model="itemRi.value" filterable
                         :placeholder="itemRi.label" clearable>
-                        <el-option v-for="item in itemRi.options" :key="item.value" :label="item.label" :value="item.value">
+                        <el-option v-for="item in itemRi.options" :key="item.value" :label="item.label"
+                            :value="item.value">
                         </el-option>
                     </el-select>
 
-                    <el-select v-if="itemRi.type == 'select'" v-model="itemRi.value" :placeholder="itemRi.label" clearable>
-                        <el-option v-for="item in itemRi.options" :key="item.value" :label="item.label" :value="item.value">
+                    <el-select v-if="itemRi.type == 'select'" v-model="itemRi.value" :placeholder="itemRi.label"
+                        clearable>
+                        <el-option v-for="item in itemRi.options" :key="item.value" :label="item.label"
+                            :value="item.value">
                         </el-option>
                     </el-select>
+                    <div v-if="itemRi.type == 'datetimerange'">
+                        <span v-if="itemRi.label" style="margin-right:10px;color:#606266">{{ itemRi.label }}</span>
+                        <el-date-picker v-model="itemRi.value"
+                            type="datetimerange" :picker-options="itemRi.pickerOptions" range-separator="至"
+                            :start-placeholder="itemRi.startlabel" :end-placeholder="itemRi.endLabel" align="right"
+                            clearable :value-format="itemRi.valueFormat" :default-time="itemRi.defaultTime">
+                        </el-date-picker>
+                    </div>
 
-                    <el-date-picker v-if="itemRi.type == 'datetimerange'" v-model="itemRi.value" type="datetimerange"
-                        :picker-options="itemRi.pickerOptions" range-separator="至" :start-placeholder="itemRi.startlabel"
-                        :end-placeholder="itemRi.endLabel" align="right" clearable :value-format="itemRi.valueFormat"
-                        :default-time="itemRi.defaultTime">
-                    </el-date-picker>
 
                     <div class="active-main" v-if="itemRi.type == 'sCheckBoxGroup'">
                         <div v-for="it in itemRi.list" class="active-list" :key="it.value">
@@ -57,6 +72,13 @@
                             </div>
                         </div>
                     </div>
+                    <el-checkbox v-if="itemRi.type == 'checkBox'" v-model="itemRi.value" @change="changeCheckbox">{{
+                        itemRi.label
+                    }}</el-checkbox>
+
+                    <el-cascader v-if="itemRi.type == 'cascader'" :options="itemRi.options" v-model="itemRi.value"
+                        :props="itemRi.optionConfig.props" :placeholder="itemRi.label" clearable
+                        :filterable="itemRi.optionConfig.filterable"></el-cascader>
                 </div>
                 <div class="self-search-but" @click="submit()">
                     <i class="el-icon-search"></i>
@@ -65,51 +87,53 @@
         </div>
         <!-- 表格区 -->
         <div ref="table" class="table common-list-content" v-loading="loading">
-            <el-table :data="tableData" v-if="headslotLoading" :max-height="maxHeight" empty-text="暂无数据"
-                @selection-change="handleSelectionChange">
+            <el-table ref="elTable" :data="tableData" v-if="headslotLoading" :max-height="maxHeight" empty-text="暂无数据"
+                @selection-change="handleSelectionChange" @select="handleSelect" @select-all="handleSelectAll" stripe
+                :row-key="getRowKeys">
                 <template v-for="item in config.thead">
                     <!-- 序列 -->
                     <el-table-column v-if="item.type == 'index' && item.visible" type="index" :label="item.label"
-                        :width="item.width ? item.width : 'auto'" :key="item.prop"
-                        :align="item.align ? item.align : 'left'" />
+                        :width="item.width" :key="item.prop" :align="item.align ? item.align : 'left'" />
                     <!-- 勾选框 -->
                     <el-table-column v-if="item.type == 'selection' && item.visible" type="selection" :key="item.prop"
-                        :width="item.width ? item.width : 'auto'" :align="item.align ? item.align : 'left'" />
+                        :width="item.width" :align="item.align ? item.align : 'center'" />
                     <!-- 插槽自定义内容-->
-                    <el-table-column v-if="item.templateSlot && item.visible" :key="item.prop" v-bind="item"
-                        show-overflow-tooltip :align="item.align ? item.align : 'left'"
-                        :width="item.width ? item.width : 'auto'">
+                    <el-table-column v-if="item.templateSlot && item.visible && (!item.headSlot)" :key="item.prop"
+                        v-bind="item" show-overflow-tooltip :align="item.align ? item.align : 'left'"
+                        :width="item.width">
                         <template slot-scope="scope">
                             <slot :name="item.prop" :scope="scope"></slot>
                         </template>
                     </el-table-column>
                     <!-- 普通展示 -->
-                    <el-table-column v-if="item.visible && (!item.templateSlot) && (!item.headSlot)" :key="item.prop"
-                        v-bind="item" show-overflow-tooltip :align="item.align ? item.align : 'left'"
-                        :width="item.width ? item.width : 'auto'" />
+                    <el-table-column
+                        v-if="item.type != 'selection' && item.visible && (!item.templateSlot) && (!item.headSlot)"
+                        :key="item.prop" v-bind="item" show-overflow-tooltip :align="item.align ? item.align : 'left'"
+                        :width="item.width" />
                     <!-- 插槽自定义表头带过滤内容 -->
-                    <el-table-column v-if="item.headSlot && item.visible" :key="item.prop" v-bind="item"
-                        show-overflow-tooltip :align="item.align ? item.align : 'left'"
-                        :width="item.width ? item.width : 'auto'">
+                    <el-table-column v-if="item.headSlot && item.templateSlot && item.visible" :key="item.prop"
+                        v-bind="item" show-overflow-tooltip :align="item.align ? item.align : 'left'"
+                        :width="item.width">
+
                         <template slot-scope="scope" slot="header">
                             <div class="slot-filter">
                                 <span>{{ item.label }}</span>
-                                <el-popover placement="bottom" trigger="manual" popper-class="headslotpop" width="auto"
+                                <el-popover placement="bottom" popper-class="headslotpop" width="auto"
                                     v-model="headSlot[item.prop].show">
                                     <el-checkbox :indeterminate="headSlot[item.prop].isIndeterminate"
                                         v-model="headSlot[item.prop].checkAll"
                                         @change="(val) => handleCheckAllChange(val, item.prop)">全选</el-checkbox>
                                     <el-checkbox-group v-model="headSlot[item.prop].checkedData"
                                         @change="(val) => handleCheckedChange(val, item.prop)">
-                                        <el-checkbox v-for="itemslot in headSlot[item.prop].options" :label="itemslot.value"
-                                            :key="itemslot.value">{{ itemslot.label }}</el-checkbox>
+                                        <el-checkbox v-for="itemslot in headSlot[item.prop].options"
+                                            :label="itemslot.value" :key="itemslot.value">{{ itemslot.label
+                                            }}</el-checkbox>
                                     </el-checkbox-group>
                                     <div class="sure"
                                         :class="headSlot[item.prop].checkedData.length > 0 ? 'canOperate' : 'cantOperate'"
                                         @click="headSlot[item.prop].checkedData.length > 0 ? headslotSearch(item.prop) : null">
                                         确定</div>
-                                    <img slot="reference" src="./images/filter.png" alt="" class="h-filter-img"
-                                        @click="headSlot[item.prop].show = !headSlot[item.prop].show">
+                                    <img slot="reference" src="./images/filter.png" alt="" class="h-filter-img">
                                 </el-popover>
                             </div>
                         </template>
@@ -118,30 +142,34 @@
                         </template>
                     </el-table-column>
                 </template>
-
                 <!-- 操作部分 -->
                 <el-table-column v-if="config.operation.isShow" v-bind="config.operation"
-                    :align="config.operation.align ? config.operation.align : 'left'" :fixed="config.operation.fixed">
+                    :align="config.operation.align ? config.operation.align : 'left'"
+                    :fixed="config.operation.fixed ? config.operation.fixed : null"
+                    :width="config.operation.width ? config.operation.width : 'auto'">
                     <template slot-scope="scope">
                         <template v-for="itemBtn, indexBtn in config.btnList">
-                            <el-button :key="indexBtn" v-bind="itemBtn"
+                            <el-button v-hasAuth="itemBtn.auth" :key="indexBtn" v-bind="itemBtn"
                                 :disabled="itemBtn.disabled ? itemBtn.disabled(scope.row) : false"
                                 v-if="itemBtn.isShow ? itemBtn.isShow(scope.row) : true" :type="itemBtn.type"
-                                @click.native.prevent="handleRow(scope.$index, scope.row, itemBtn.value)">{{ itemBtn.label
-                                }}</el-button>
+                                @click.native.prevent="handleRow(scope.$index, scope.row, itemBtn.value)">{{
+                        itemBtn.label
+                    }}</el-button>
                         </template>
                     </template>
                 </el-table-column>
             </el-table>
             <!--分页区域-->
             <div class="pagination">
-                <el-pagination :current-page.sync="pageQuery.index" :page-sizes="pagesizes" :page-size="pageQuery.size"
+                <el-pagination :current-page.sync="pageQuery.index"
+                    :page-sizes="config.pagesizes ? config.pagesizes : pagesizes" :page-size="pageQuery.size"
                     layout="total, sizes, prev, pager, next, jumper" :total="total" background
                     @size-change="handleSizeChange" @current-change="handleCurrentChange" />
             </div>
         </div>
     </div>
 </template>
+
 <script>
 export default {
     name: 'hTable',
@@ -162,7 +190,25 @@ export default {
             },
             deep: true,
             immediate: true
-        }
+        },
+        tableData: {
+            handler(newVal) {
+                if (this.checkRows.length) {
+                    this.toggleTableCheck()
+                }
+            },
+            deep: true,
+            immediate: true
+        },
+        checkRows: {
+            handler(newVal) {
+                if (newVal.length) {
+                    this.toggleTableCheck()
+                }
+            },
+            deep: true,
+            immediate: true
+        },
     },
     data() {
         return {
@@ -178,15 +224,44 @@ export default {
             tableData: [], //表格数据
             headSlot: {}, // 头部有插槽的对象集合
             searchFormData: {}, //表格顶部的条件搜索
-            maxHeight: 0
+            maxHeight: 0,
+            checkRows: []
         }
     },
     methods: {
 
+        //打勾或取消
+        handleSelect(selecteds, row) {
+            this.$emit('handleSelect', selecteds, row)
+        },
+
+        //全选、取消全选
+        handleSelectAll(selecteds) {
+            this.$emit('handleSelectAll', selecteds)
+        },
+
         // 选中的数据
         handleSelectionChange(val) {
-            console.log(val)
             this.$emit('handleSelChange', val)
+        },
+
+        //表格数据的反勾选
+        setCheckRows(rows) {
+            this.checkRows = rows;
+        },
+
+        toggleTableCheck() {
+            this.$nextTick(() => {
+                this.$refs.elTable.clearSelection();
+                this.tableData.forEach((item, index) => {
+                    this.checkRows.forEach(row => {
+                        if (row[this.config.rowkey] == item[this.config.rowkey]) {
+                            this.$refs.elTable.toggleRowSelection(this.tableData[index], true);
+                        }
+                    })
+                })
+            })
+
         },
 
         // 操作按钮
@@ -194,20 +269,37 @@ export default {
             this.$emit('handleRow', idx, row, value)
         },
 
+        //checkBox切换调用
+        changeCheckbox() {
+            this.submit()
+        },
+
+        //设置表格唯一绑定的key
+        getRowKeys(row) {
+            return this.config.rowkey ? row[this.config.rowkey] : null
+        },
+
+
         //提交搜索条件
         submit() {
+            this.searchFormData = {}
             //循环左侧的操作数据
             this.searchForm.leConditions.forEach(itemLe => {
                 this.$set(this.searchFormData, itemLe.valueName, itemLe.value)
             })
             //循环左侧的操作数据
             this.searchForm.riConditions.forEach(itemRi => {
-                if(itemRi.type === 'datetimerange'){
-                    this.$set(this.searchFormData, itemRi.sLabel, itemRi.value[0]);
-                    this.$set(this.searchFormData, itemRi.eLabel, itemRi.value[1])
-                }else{
-                    this.$set(this.searchFormData, itemRi.valueName, itemRi.value)
+                if (itemRi.value) {
+                    if (itemRi.type === 'datetimerange') {
+                        this.$set(this.searchFormData, itemRi.sLabel, itemRi.value[0]);
+                        this.$set(this.searchFormData, itemRi.eLabel, itemRi.value[1])
+                    } else if (itemRi.type === 'cascader') {
+                        this.$set(this.searchFormData, itemRi.valueName, itemRi.value[itemRi.value.length - 1])
+                    } else {
+                        this.$set(this.searchFormData, itemRi.valueName, itemRi.value)
+                    }
                 }
+
             })
             this.getTableData()
         },
@@ -270,8 +362,8 @@ export default {
         addSearchFormData() {
             this.searchForm.riConditions.forEach(itemRi => {
                 if (itemRi.optionConfig) {
-                    this.allFetchData(itemRi.optionConfig).then(res => {
-                        itemRi.options = res
+                    this.allFetchData(itemRi.optionConfig, itemRi.type).then(res => {
+                        itemRi.options = res;
                     })
                 }
             })
@@ -294,11 +386,14 @@ export default {
                     }
                     //静态数据
                     if (item.options) {
-                        this.$set(this.headSlot, props[index], {
+                        let checkedData = item.options.map(item => {
+                            return item.value
+                        })
+                        this.$set(this.headSlot, item.prop, {
                             isIndeterminate: false, // 全选状态
                             checkAll: true, //是否全选
                             checkedData: checkedData,// 选中的数据组
-                            options: item.optios,//多选的勾选数据
+                            options: item.options,//多选的勾选数据
                             show: false
                         })
                     }
@@ -333,21 +428,43 @@ export default {
             }
         },
 
+        //获取次级的递归处理
+        getTreeData(data) {
+            for (var i = 0; i < data.length; i++) {
+                if (data[i].children) {
+                    if (data[i].children.length < 1) {
+                        // children若为空数组，则将children设为undefined
+                        data[i].children = undefined;
+                    } else {
+                        // children若不为空数组，则继续 递归调用 本方法
+                        this.getTreeData(data[i].children);
+                    }
+                }
+            }
+            return data;
+        },
+
         //顶部搜索和表格头部接口获取
         //inter: 接口名称
         //需要处理成的value,label  
-        allFetchData(configOptions) {
+        allFetchData(configOptions, type) {
             return new Promise((resolve, reject) => {
                 configOptions.inter(configOptions.params).then(res => {
                     if (res.code == 0) {
                         let arr = res.data.result;
-                        let newArr = arr.map(item => {
-                            return {
-                                value: item[configOptions.value],
-                                label: item[configOptions.label]
-                            }
-                        })
-                        resolve(newArr)
+                        if (type == 'cascader') {
+                            let newArr = this.getTreeData(arr);
+                            resolve(newArr)
+                        } else {
+                            let newArr = arr.map(item => {
+                                return {
+                                    value: item[configOptions.value],
+                                    label: item[configOptions.label]
+                                }
+                            })
+                            resolve(newArr)
+                        }
+
                     } else {
                         reject(res)
                     }
@@ -370,12 +487,19 @@ export default {
                     }
                 }
                 this.loading = true;
-                this.config.inter({ ...this.pageQuery, ...headSlotParams, ...this.searchFormData }).then(res => {
+                //判断是否立即执行条用数据接口
+                if (this.config.isExecute) {
+                    this.loading = false;
+                    return
+                }
+
+                this.config.inter({ ...this.pageQuery, ...headSlotParams, ...this.searchFormData, ...this.config.executeParams }).then(res => {
+                    this.loading = false;
                     if (res.code == 0) {
-                        this.loading = false;
-                        this.total = res.data.total || res.data.result.page.records;
+                        this.total = res.data.page ? res.data.page.records : (res.data.total || (res.data.result && res.data.result.total) || 0);
                         this.tableData = res.data.result.results || res.data.result;
                     }
+
                 })
             }
 
@@ -402,17 +526,17 @@ export default {
     }
 }
 </script>
-   
+
 <style lang="scss" scoped>
 .content {
-    margin: 10px;
     padding: 0 20px 20px 20px;
-    width: calc(100% - 60px);
-    height: calc(100% - 95px);
+    width: calc(100% - 40px);
+    height: calc(100% - 20px);
     background-color: #fff;
     border-radius: 4px;
     display: flex;
     flex-direction: column;
+    box-shadow: 0px 0px 15px 0px rgba(0, 0, 0, 0.15);
 
     .searchFrom {
         width: 100%;
@@ -633,7 +757,15 @@ export default {
 ::v-deep .el-table thead {
     color: #000000d8;
 }
+
+.inputSite {
+    ::v-deep .el-input__inner {
+        background-color: #fff !important;
+        cursor: pointer !important;
+    }
+}
 </style>
+
 <style>
 .headslotpop .el-checkbox-group {
     display: flex;
@@ -661,5 +793,14 @@ export default {
 .headslotpop .sure.cantOperate {
     cursor: not-allowed;
 }
+
+.buttonDrop {
+    width: 112px;
+    text-align: center;
+    margin-top: 0px;
+}
+
+.buttonDrop .popper__arrow {
+    display: none !important;
+}
 </style>
-   

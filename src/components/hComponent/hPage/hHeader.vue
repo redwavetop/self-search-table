@@ -1,6 +1,8 @@
 <template>
     <div class="headeContainer">
-        <div class="le_head">{{ headConfig.flexLe.title }}</div>
+        <div class="le_head">
+            <span>{{ headConfig.flexLe.title }}</span>
+        </div>
         <div class="ri_head"></div>
     </div>
 </template>
@@ -32,7 +34,7 @@ export default {
     border-bottom: 1px solid #e9e9e9;
 
     .le_head {
-        padding-left: 12px;
+        padding-left: 20px;
     }
 }
 </style>
